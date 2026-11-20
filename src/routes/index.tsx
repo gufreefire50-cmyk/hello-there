@@ -1,23 +1,57 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useMemo, useState } from "react";
 
-// The home route ships no og:image, so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
-export const Route = createFileRoute("/")({
-  component: Index,
-});
+export const Route = createFileRoute("/")({ component: Index });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
+type Product = { id: number; name: string; category: string; price: number; unit: string; image: string; description: string };
+const initialProducts: Product[] = [
+  { id: 1, name: "Cloro Granulado", category: "Tratamento", price: 39.9, unit: "1 kg", image: "https://images.unsplash.com/photo-1621905251918-48416bd8575a?auto=format&fit=crop&w=700&q=85", description: "Para manter a água limpa e cristalina." },
+  { id: 2, name: "Algicida de Manutenção", category: "Tratamento", price: 28.9, unit: "1 L", image: "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=700&q=85", description: "Ajuda a prevenir a formação de algas." },
+  { id: 3, name: "Kit de Limpeza", category: "Acessórios", price: 119.9, unit: "kit", image: "https://images.unsplash.com/photo-1575429198097-0414ec08e8cd?auto=format&fit=crop&w=700&q=85", description: "Itens essenciais para o cuidado da piscina." },
+  { id: 4, name: "Bomba para Piscina", category: "Equipamentos", price: 589, unit: "unidade", image: "https://images.unsplash.com/photo-1572331165267-854da2b10ccc?auto=format&fit=crop&w=700&q=85", description: "Desempenho e circulação eficiente." },
+  { id: 5, name: "Refil para Filtro", category: "Equipamentos", price: 79.9, unit: "unidade", image: "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=700&q=85", description: "Manutenção prática do sistema de filtragem." },
+  { id: 6, name: "Aspirador para Piscina", category: "Acessórios", price: 149.9, unit: "unidade", image: "https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?auto=format&fit=crop&w=700&q=85", description: "Mais praticidade na limpeza do fundo." },
+];
+const money = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
 function Index() {
+  const [products, setProducts] = useState(initialProducts);
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("Todos");
+  const [cart, setCart] = useState<Record<number, number>>({});
+  const [cartOpen, setCartOpen] = useState(false);
+  const [admin, setAdmin] = useState(false);
+  const [bairro, setBairro] = useState("");
+  const [customer, setCustomer] = useState("");
+  const [phone, setPhone] = useState("");
+  const [notice, setNotice] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newPrice, setNewPrice] = useState("");
+  const [newCategory, setNewCategory] = useState("Tratamento");
+  const categories = ["Todos", "Tratamento", "Acessórios", "Equipamentos"];
+  const filtered = useMemo(() => products.filter(p => (category === "Todos" || p.category === category) && p.name.toLowerCase().includes(query.toLowerCase())), [products, category, query]);
+  const count = Object.values(cart).reduce((a, b) => a + b, 0);
+  const total = products.reduce((sum, p) => sum + p.price * (cart[p.id] || 0), 0);
+  const add = (id: number) => setCart(old => ({ ...old, [id]: (old[id] || 0) + 1 }));
+  const change = (id: number, amount: number) => setCart(old => { const next = { ...old, [id]: Math.max(0, (old[id] || 0) + amount) }; if (!next[id]) delete next[id]; return next; });
+  const checkout = () => {
+    if (!customer.trim() || !phone.trim() || !bairro.trim()) { setNotice("Preencha nome, WhatsApp e bairro para continuar."); return; }
+    const lines = products.filter(p => cart[p.id]).map(p => `• ${p.name} (${p.unit}) x${cart[p.id]} — ${money(p.price * cart[p.id])}`).join("%0A");
+    const msg = `Olá! Gostaria de separar estes produtos para retirada na loja EDM Piscinas:%0A%0A${lines}%0A%0ATotal estimado: ${money(total)}%0A%0ANome: ${customer}%0AWhatsApp: ${phone}%0ABairro: ${bairro}%0A%0AConfirmo a retirada diretamente na loja.`;
+    window.open("https://wa.me/?text=" + msg, "_blank");
+  };
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
+    <div className="edm">
+      <div className="topline"><span>EDM PISCINAS</span><span>Qualidade e cuidado para sua piscina</span><span>Atendimento em loja</span></div>
+      <header className="nav"><a className="brand" href="#" onClick={() => setAdmin(false)}><span className="brand-mark">EDM</span><span><b>EDM PISCINAS</b><small>PRODUTOS • EQUIPAMENTOS • CUIDADO</small></span></a><nav><a href="#produtos">Produtos</a><a href="#sobre">A loja</a><a href="#retirada">Retirada</a></nav><div className="nav-actions"><button className="admin-link" onClick={() => setAdmin(!admin)}>{admin ? "Ver loja" : "Área administrativa"}</button><button className="cart-button" onClick={() => setCartOpen(true)}>Sacola <b>{count}</b></button></div></header>
+      {admin ? <main className="admin-page"><div className="admin-head"><div><span className="eyebrow">EDM PISCINAS / GESTÃO</span><h1>Painel administrativo</h1><p>Visão inicial da loja e do catálogo de produtos.</p></div><span className="status">● Painel de demonstração</span></div><div className="stats"><article><small>Produtos cadastrados</small><strong>{products.length}</strong></article><article><small>Itens no carrinho atual</small><strong>{count}</strong></article><article><small>Valor do carrinho</small><strong>{money(total)}</strong></article></div><section className="admin-card"><h2>Adicionar produto ao catálogo</h2><p>Os produtos adicionados aparecem imediatamente na vitrine desta demonstração.</p><div className="admin-form"><input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Nome do produto"/><input value={newPrice} onChange={e => setNewPrice(e.target.value)} placeholder="Preço (ex.: 49,90)" inputMode="decimal"/><select value={newCategory} onChange={e => setNewCategory(e.target.value)}><option>Tratamento</option><option>Acessórios</option><option>Equipamentos</option></select><button onClick={() => { const price = Number(newPrice.replace(",", ".")); if (!newName.trim() || !price || price <= 0) return; setProducts(old => [...old, { id: Date.now(), name: newName, category: newCategory, price, unit: "unidade", image: "https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?auto=format&fit=crop&w=700&q=85", description: "Consulte nossa equipe para mais informações." }]); setNewName(""); setNewPrice(""); }}>Adicionar produto</button></div></section><section className="admin-card"><h2>Catálogo atual</h2>{products.map(p => <div className="admin-product" key={p.id}><span>{p.name}<small>{p.category}</small></span><b>{money(p.price)}</b><button onClick={() => setProducts(old => old.filter(x => x.id !== p.id))}>Remover</button></div>)}</section><p className="admin-warning">Atenção: este painel está aberto, sem autenticação e usa dados locais da demonstração. As alterações não ficam salvas em banco de dados nem sincronizam entre dispositivos.</p></main> :
+      <><main><section className="hero"><div className="hero-content"><span className="eyebrow light">TUDO PARA SUA PISCINA, EM UM SÓ LUGAR</span><h1>Seu verão começa<br/>com uma piscina <i>bem cuidada.</i></h1><p>Produtos, acessórios e equipamentos para cuidar da sua piscina com praticidade e confiança.</p><a className="primary-cta" href="#produtos">Explorar produtos <span>↗</span></a><div className="hero-points"><span>✓ Produtos selecionados</span><span>✓ Atendimento especializado</span></div></div><div className="hero-note"><span>EDM</span><small>Há 15 anos cuidando de piscinas</small></div></section>
+      <section className="trust-strip"><div><b>15 anos</b><span>de experiência no segmento</span></div><div><b>Completo</b><span>do tratamento aos equipamentos</span></div><div><b>Presencial</b><span>retire seu pedido diretamente na loja</span></div></section>
+      <section className="products-section" id="produtos"><div className="section-heading"><div><span className="eyebrow">NOSSO CATÁLOGO</span><h2>Encontre o que sua piscina precisa.</h2><p>Explore nossa seleção de produtos e monte seu pedido.</p></div><button className="outline-button" onClick={() => setCartOpen(true)}>Ver sacola ({count})</button></div><div className="catalog-tools"><div className="searchbox"><span>⌕</span><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar produto..."/></div><div className="categories">{categories.map(c => <button className={category === c ? "selected" : ""} key={c} onClick={() => setCategory(c)}>{c}</button>)}</div></div><div className="product-grid">{filtered.map(p => <article className="product-card" key={p.id}><div className="product-image"><img src={p.image} alt={p.name}/><span>{p.category}</span></div><div className="product-info"><h3>{p.name}</h3><p>{p.description}</p><div className="product-bottom"><div><strong>{money(p.price)}</strong><small>{p.unit}</small></div><button onClick={() => add(p.id)} aria-label={"Adicionar " + p.name}>+</button></div></div></article>)}</div>{filtered.length === 0 && <div className="empty">Não encontramos produtos com essa busca.</div>}</section>
+      <section className="about-section" id="sobre"><div className="about-image"><img src="https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?auto=format&fit=crop&w=1100&q=90" alt="Piscina residencial limpa e bem cuidada"/></div><div><span className="eyebrow">SOBRE A EDM PISCINAS</span><h2>Experiência que faz a diferença no cuidado com sua piscina.</h2><p>Há 15 anos no segmento, nossa equipe trabalha para oferecer produtos e soluções para manutenção, instalação e cuidado de piscinas residenciais e comerciais.</p><div className="about-tags"><span>Tratamento da água</span><span>Bombas e filtros</span><span>Acessórios</span><span>Manutenção e instalação</span></div></div></section>
+      <section className="pickup" id="retirada"><div><span className="eyebrow light">SIMPLES E PRÁTICO</span><h2>Escolha seus produtos.<br/><i>Retire na loja.</i></h2><p>Monte sua sacola pelo catálogo e envie o pedido para nossa equipe confirmar a disponibilidade. Não trabalhamos com entrega por este catálogo.</p><a href="#produtos" className="primary-cta">Montar meu pedido ↗</a></div><div className="pickup-card"><span>01</span><b>Escolha</b><p>Encontre os produtos no catálogo.</p><span>02</span><b>Envie</b><p>Compartilhe seu pedido pelo WhatsApp.</p><span>03</span><b>Retire</b><p>Combine a confirmação e retire na loja.</p></div></section></main>
+      <footer><a className="brand footer-brand" href="#"><span className="brand-mark">EDM</span><span><b>EDM PISCINAS</b><small>PRODUTOS • EQUIPAMENTOS • CUIDADO</small></span></a><p>Há 15 anos ajudando você a cuidar melhor da sua piscina.</p><span>© {new Date().getFullYear()} EDM Piscinas. Todos os direitos reservados.</span></footer></>}
+      {cartOpen && <div className="overlay" onMouseDown={e => { if (e.target === e.currentTarget) setCartOpen(false); }}><aside className="cart-drawer"><div className="drawer-head"><div><span className="eyebrow">SEU PEDIDO</span><h2>Sacola de produtos</h2></div><button onClick={() => setCartOpen(false)}>✕</button></div>{count === 0 ? <div className="empty-cart"><span>＋</span><h3>Sua sacola está vazia</h3><p>Adicione produtos do catálogo para montar seu pedido.</p><button onClick={() => setCartOpen(false)}>Explorar produtos</button></div> : <><div className="cart-items">{products.filter(p => cart[p.id]).map(p => <div className="cart-item" key={p.id}><img src={p.image} alt=""/><div><b>{p.name}</b><small>{money(p.price)} / {p.unit}</small><div className="quantity"><button onClick={() => change(p.id, -1)}>−</button><span>{cart[p.id]}</span><button onClick={() => change(p.id, 1)}>+</button></div></div><strong>{money(p.price * cart[p.id])}</strong></div>)}</div><div className="cart-total"><span>Total estimado</span><b>{money(total)}</b></div><div className="checkout-form"><h3>Dados para retirada</h3><input value={customer} onChange={e => setCustomer(e.target.value)} placeholder="Seu nome"/><input value={phone} onChange={e => setPhone(e.target.value)} placeholder="WhatsApp com DDD" inputMode="tel"/><input value={bairro} onChange={e => setBairro(e.target.value)} placeholder="Seu bairro"/><p>Retirada diretamente na loja. A disponibilidade será confirmada pela equipe.</p>{notice && <small className="notice">{notice}</small>}<button className="send-order" onClick={checkout}>Enviar pedido pelo WhatsApp ↗</button></div></>}</aside></div>}
     </div>
   );
 }
